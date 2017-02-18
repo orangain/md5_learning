@@ -1,33 +1,21 @@
 from functools import reduce
 from math import sin
+from struct import iter_unpack, pack
 
 
-# bytesをwordsに変換
+# bytesをwords（32bits以内のintのlist）に変換
 def bytes_to_words(input_bytes):
     assert len(input_bytes) % 4 == 0
 
-    words = []
-    for i in range(len(input_bytes) // 4):
-        # 4バイトを下位バイトからつなげてwordにする
-        word = input_bytes[i * 4] | input_bytes[i * 4 + 1] << 8 | input_bytes[i * 4 + 2] << 16 | input_bytes[i * 4 + 3] << 24
-        words.append(word)
-
+    # <I は リトルエンディアンのunsigned int (4bytes)
+    words = [w[0] for w in iter_unpack('<I', input_bytes)]
     return words
 
 
-# wordをbytesに変換
-def word_to_bytes(w):
-    return int_to_bytes(w, 4)
-
-
-# 任意のbyte数のintをbytesに変換
-def int_to_bytes(n, num_bytes):
-    byte_list = []
-    for _ in range(num_bytes):
-        byte_list.append(n & 0xFF)
-        n = n >> 8
-
-    return bytes(byte_list)
+# wordsをbytesに変換
+def words_to_bytes(words):
+    # <I は リトルエンディアンのunsigned int (4bytes)
+    return b''.join((pack('<I', w) for w in words))
 
 
 # 任意のbit数のintをword（32bits）に切り捨てる
@@ -84,6 +72,8 @@ def add_padding(input_bytes):
     else:
         num_padding_bits = 448 - mod
 
+    # ここで入力はbytes単位 = 8bits単位であると仮定している。
+    # Pythonでbytes単位でない入力を扱うことはないと思われるので良いかと。
     assert num_padding_bits % 8 == 0
     num_padding_bytes = num_padding_bits // 8
 
@@ -198,7 +188,7 @@ def calculate_MD5(X, A, B, C, D):
 
 # ステップ5. 出力
 def finalize(A, B, C, D):
-    return (word_to_bytes(A) + word_to_bytes(B) + word_to_bytes(C) + word_to_bytes(D)).hex()
+    return words_to_bytes((A, B, C, D)).hex()
 
 
 # MD5の計算
